@@ -80,29 +80,7 @@ WHERE YEAR([transaction_date]) = 2021;
 
 ```
 
-### Caso 3: Descubrimiento de Datos de Autoservicio
-
-Este ejemplo ilustra cómo los nuevos analistas pueden descubrir y acceder rápidamente a los datos sin sobrecarga administrativa.
-
-```
-FLUJO DE DESCUBRIMIENTO:
-
-NUEVO ANALISTA:
-├── Abre Catálogo OneLake
-├── Busca: "cliente"
-├── Encuentra: datos_cliente (en ventas-analytics)
-├── Ve vista previa + metadatos
-└── Crea acceso directo en su espacio de trabajo
-↓
-RESULTADO INMEDIATO:
-├── Acceso de autoservicio a datos
-├── Sin duplicación de datos
-├── Gobernanza automática
-└── Análisis en minutos, no semanas
-
-```
-
-### Caso 4: Experiencia de Acceso a Datos Familiar
+### Caso 3: Experiencia de Acceso a Datos Familiar
 
 Este ejemplo muestra cómo los científicos de datos pueden acceder a los datos de OneLake a través de interfaces familiares como el Explorador de Windows.
 
@@ -134,6 +112,69 @@ print(f"Datos: {len(df)} registros")
 ```
 C:\Users\Paul\OneLake - Microsoft\WP_3\iot_lakehouse.Lakehouse\Files\iot_sensor_data.parquet
 
+```
+### Caso 4: Mirroring de Snowflake para Análisis Híbrido
+
+Este ejemplo demuestra cómo replicar datos de una base en Snowflake a OneLake en Microsoft Fabric, permitiendo sincronización en tiempo real y queries unificadas sin ETL manual. Se utiliza una tabla de clientes en Snowflake que se mirrors a Fabric, y se verifica la propagación de cambios (por ejemplo, una actualización de correo).
+```
+BASE SNOWFLAKE:
+├── DEMO (Esquema)
+│   └── customers (Tabla: NAME STRING, EMAIL STRING, COUNTRY STRING, CREATED_AT TIMESTAMP)
+│       ├── Registros iniciales:
+│       │   - ("Juan Pérez", "juan.perez@ejemplo.com", "Perú")
+│       │   - ("María Gómez", "maria.gomez@ejemplo.com", "Chile")
+│       │   - ("Paul Smith", "paul.smith@ejemplo.com", "USA")
+↓
+MIRRORING DESDE FABRIC:
+├── analytics-workspace/
+│   ├── snowflake_mirror → Tabla customers de Snowflake
+│   └── Queries unificadas en Fabric (ej. con datos legacy + nuevos)
+↓
+ACTUALIZACIÓN:
+- En Snowflake: UPDATE customers SET EMAIL = 'maria.nueva@ejemplo.com' WHERE NAME = 'María Gómez';
+- En Fabric: El cambio se refleja en tiempo real en la tabla mirrored.
+
+
+```
+Implementación:
+1. Configurar conexión a Snowflake en Microsoft Fabric (usando credenciales y permisos).
+2. Crear un mirroring de la base de datos/esquema completo o tabla específica desde el portal de Fabric.
+3. Ejecutar queries en Snowflake para insertar/actualizar datos.
+4. Verificar en Fabric: Los cambios se sincronizan automáticamente (incremental, sin downtime).
+5. Beneficios: Transición suave de legacy en Snowflake a análisis en Fabric, governance automática, costos optimizados (solo compute de Snowflake para queries originales).
+
+Código Snowflake de INSERT & UPDATE:
+```
+-- Crear esquema si no existe (opcional, para mantener ordenado)
+CREATE SCHEMA IF NOT EXISTS DEMO;
+
+-- Crear tabla customers
+CREATE OR REPLACE TABLE DEMO.customers (
+    NAME STRING,
+    EMAIL STRING,
+    COUNTRY STRING,
+    CREATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insertar registros iniciales
+INSERT INTO DEMO.customers (NAME, EMAIL, COUNTRY)
+VALUES 
+    ('Juan Pérez', 'juan.perez@ejemplo.com', 'Perú'),
+    ('María Gómez', 'maria.gomez@ejemplo.com', 'Chile'),
+    ('Paul Smith', 'paul.smith@ejemplo.com', 'USA');
+
+-- Actualización de ejemplo (cambio que se propaga a Fabric)
+UPDATE DEMO.customers 
+SET EMAIL = 'maria.nueva@ejemplo.com' 
+WHERE NAME = 'María Gómez';
+```
+Consulta despues en Fabric:
+```
+SELECT TOP (10) 
+    *
+FROM [lakehouse].[dbo].[customers]
+ORDER BY CREATED_AT DESC;
+-- Verás el email actualizado: 'maria.nueva@ejemplo.com'
 ```
 
 ## Comenzando
